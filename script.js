@@ -1472,7 +1472,7 @@ function updateDispersionPlots() {
             x: nuSmooth, y: R2Fast,
             mode: 'lines',
             line: { color: '#e17055', width: 2, dash: 'dash' },
-            name: 'Fast-limit approx.',
+            name: 'Luz-Meiboom (LM) approx.',
             type: 'scatter'
         });
     }

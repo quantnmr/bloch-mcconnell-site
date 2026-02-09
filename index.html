@@ -17,7 +17,7 @@
         <div class="tab-bar">
             <button class="tab-button active" data-tab="bloch">Bloch Equations</button>
             <button class="tab-button" data-tab="simulation">Bloch-McConnell Model</button>
-            <button class="tab-button" data-tab="animation">Spin Exchange Simulation</button>
+            <button class="tab-button" data-tab="animation">Spin Exchange and CPMG Demonstration</button>
             <button class="tab-button" data-tab="dispersion">CPMG Relaxation Dispersion</button>
         </div>
 
@@ -324,12 +324,26 @@
         <div class="tab-content" id="tab-dispersion">
             <div class="dispersion-container">
                 <div class="dispersion-controls">
-                    <h2>Parameters</h2>
+                    <h2>CPMG Relaxation Dispersion</h2>
 
-                    <div class="info-box">
-                        <h3>CPMG Relaxation Dispersion</h3>
-                        <p>Carr-Purcell-Meiboom-Gill (CPMG) experiments measure R<sub>2,eff</sub> at varying refocusing pulse rates ν<sub>CPMG</sub>. Exchange between conformational states causes line broadening that is progressively quenched at higher ν<sub>CPMG</sub>, producing characteristic dispersion curves that encode the exchange dynamics.</p>
+                    <div class="bloch-equations">
+                        <p class="eq-intro">CPMG experiments measure R<sub>2,eff</sub> as a function of the refocusing pulse rate &nu;<sub>CPMG</sub>. Exchange broadening is progressively quenched at higher &nu;<sub>CPMG</sub>, producing dispersion curves that encode the exchange dynamics.</p>
+
+                        <div class="eq-section-title">Carver-Richards (CR) &mdash; exact two-site</div>
+                        <div class="eq-line">R<sub>2,eff</sub> = &frac12;(R<sub>2,A</sub><sup>0</sup> + R<sub>2,B</sub><sup>0</sup> + k<sub>ex</sub> &minus; 2&nu;<sub>CPMG</sub>&thinsp;acosh(D<sub>+</sub>&thinsp;cosh&thinsp;&eta;<sub>+</sub> &minus; D<sub>&minus;</sub>&thinsp;cos&thinsp;&eta;<sub>&minus;</sub>))</div>
+                        <p class="eq-note">where &tau;<sub>cp</sub> = 1/(2&nu;<sub>CPMG</sub>) and:</p>
+                        <div class="eq-line eq-small">D<sub>&plusmn;</sub> = &frac12;(&plusmn;1 + (&psi; + 2&Delta;&omega;&sup2;) / &radic;(&psi;&sup2; + &xi;&sup2;))</div>
+                        <div class="eq-line eq-small">&eta;<sub>&plusmn;</sub> = &tau;<sub>cp</sub>/&radic;2 &middot; &radic;(&plusmn;&psi; + &radic;(&psi;&sup2; + &xi;&sup2;))</div>
+                        <div class="eq-line eq-small">&psi; = (R<sub>2,A</sub><sup>0</sup> &minus; R<sub>2,B</sub><sup>0</sup> + (p<sub>B</sub>&minus;p<sub>A</sub>)k<sub>ex</sub>)&sup2; &minus; &Delta;&omega;&sup2; + 4p<sub>A</sub>p<sub>B</sub>k<sub>ex</sub>&sup2;</div>
+                        <div class="eq-line eq-small">&xi; = 2&Delta;&omega;(R<sub>2,A</sub><sup>0</sup> &minus; R<sub>2,B</sub><sup>0</sup> + (p<sub>B</sub>&minus;p<sub>A</sub>)k<sub>ex</sub>)</div>
+
+                        <div class="eq-section-title">Luz-Meiboom (LM) &mdash; fast-limit</div>
+                        <p class="eq-note">Valid when k<sub>ex</sub> &Gt; |&Delta;&omega;|:</p>
+                        <div class="eq-line">R<sub>2,eff</sub> = R<sub>2</sub><sup>0</sup> + &Phi;<sub>ex</sub>/k<sub>ex</sub> &middot; (1 &minus; tanh(k<sub>ex</sub>/4&nu;<sub>CPMG</sub>) / (k<sub>ex</sub>/4&nu;<sub>CPMG</sub>))</div>
+                        <p class="eq-note">where &Phi;<sub>ex</sub> = p<sub>A</sub>&thinsp;p<sub>B</sub>&thinsp;&Delta;&omega;&sup2; and R<sub>ex</sub> = &Phi;<sub>ex</sub>/k<sub>ex</sub>.</p>
                     </div>
+
+                    <h2 style="margin-top: 14px;">Parameters</h2>
 
                     <div class="control-group">
                         <div class="control-label">
@@ -381,7 +395,7 @@
                     <div class="control-group">
                         <div class="checkbox-group">
                             <input type="checkbox" id="disp-show-fast" checked>
-                            <label for="disp-show-fast">Show fast-limit approximation</label>
+                            <label for="disp-show-fast">Show Luz-Meiboom (LM) fast-limit approximation</label>
                         </div>
                     </div>
 
@@ -397,7 +411,7 @@
                     <div class="regime-indicator" id="regime-indicator">
                         <div><span class="math">k<sub>ex</sub></span> / |Δω| = <span class="value" id="disp-ratio-value">1.19</span></div>
                         <div>Regime: <strong id="disp-regime-label">Intermediate</strong></div>
-                        <div><span class="math">R<sub>ex</sub></span> ≈ <span class="value" id="disp-Rex-value">50.0</span> s⁻¹ <span style="color: #888; font-size: 0.85em;">(fast limit)</span></div>
+                        <div><span class="math">R<sub>ex</sub></span> ≈ <span class="value" id="disp-Rex-value">50.0</span> s⁻¹ <span style="color: #888; font-size: 0.85em;">(LM fast limit)</span></div>
                     </div>
                 </div>
 
