@@ -783,6 +783,12 @@ function updateBlochPlots() {
         if (document.getElementById('bloch-d1-value')) {
             document.getElementById('bloch-d1-value').textContent = d1.toFixed(2);
         }
+        if (document.getElementById('bloch-ernst-value')) {
+            const E1 = Math.exp(-R1 * d1);
+            const ernstRad = Math.acos(Math.max(-1, Math.min(1, E1)));
+            const ernstDeg = ernstRad * 180 / Math.PI;
+            document.getElementById('bloch-ernst-value').textContent = ernstDeg.toFixed(1);
+        }
         if (d1Slider) {
             d1Slider.disabled = !d1Enabled;
             d1Slider.classList.toggle('disabled', !d1Enabled);
