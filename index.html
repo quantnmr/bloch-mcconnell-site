@@ -14,104 +14,202 @@
             <p>Interactive simulation of two-state chemical exchange in NMR spectroscopy</p>
         </div>
 
-        <div class="content">
-            <div class="controls-panel">
-                <h2>Controls</h2>
-                
-                <div class="info-box">
-                    <h3>About This Tool</h3>
-                    <p>This interactive tool demonstrates the Bloch-McConnell equations for two-state chemical exchange in NMR. Adjust the exchange rates, chemical shifts, and relaxation parameters to see how they affect the NMR spectrum and FID.</p>
-                </div>
+        <div class="tab-bar">
+            <button class="tab-button active" data-tab="simulation">Simulation</button>
+            <button class="tab-button" data-tab="animation">Precession Animation</button>
+        </div>
 
-                <div class="control-group">
-                    <div class="control-label">
-                        <span><span class="math">k<sub>AB</sub></span> = <span class="value" id="kAB-value">1.00</span> Hz</span>
-                        <span style="color: #888; font-size: 0.9em;">Exchange Rate A→B</span>
+        <div class="tab-content active" id="tab-simulation">
+            <div class="content">
+                <div class="controls-panel">
+                    <h2>Controls</h2>
+                    
+                    <div class="info-box">
+                        <h3>About This Tool</h3>
+                        <p>This interactive tool demonstrates the Bloch-McConnell equations for two-state chemical exchange in NMR. Adjust the exchange rates, chemical shifts, and relaxation parameters to see how they affect the NMR spectrum and FID.</p>
                     </div>
-                    <input type="range" id="kAB" class="slider" min="-1" max="6" step="0.01" value="0">
-                </div>
 
-                <div class="control-group">
-                    <div class="control-label">
-                        <span><span class="math">k<sub>BA</sub></span> = <span class="value" id="kBA-value">1.00</span> Hz</span>
-                        <span style="color: #888; font-size: 0.9em;">Exchange Rate B→A</span>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span><span class="math">k<sub>AB</sub></span> = <span class="value" id="kAB-value">1.00</span> Hz</span>
+                            <span style="color: #888; font-size: 0.9em;">Exchange Rate A→B</span>
+                        </div>
+                        <input type="range" id="kAB" class="slider" min="-1" max="6" step="0.01" value="0">
                     </div>
-                    <input type="range" id="kBA" class="slider" min="-1" max="6" step="0.01" value="0">
-                </div>
 
-                <div class="control-group">
-                    <div class="control-label">
-                        <span><span class="math">R<sub>2,A</sub></span> = <span class="value" id="R2A-value">50.12</span> Hz</span>
-                        <span style="color: #888; font-size: 0.9em;">Transverse Relaxation A</span>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span><span class="math">k<sub>BA</sub></span> = <span class="value" id="kBA-value">1.00</span> Hz</span>
+                            <span style="color: #888; font-size: 0.9em;">Exchange Rate B→A</span>
+                        </div>
+                        <input type="range" id="kBA" class="slider" min="-1" max="6" step="0.01" value="0">
                     </div>
-                    <input type="range" id="R2A" class="slider" min="-1" max="3" step="0.01" value="1.7">
-                </div>
 
-                <div class="control-group">
-                    <div class="control-label">
-                        <span><span class="math">R<sub>2,B</sub></span> = <span class="value" id="R2B-value">50.12</span> Hz</span>
-                        <span style="color: #888; font-size: 0.9em;">Transverse Relaxation B</span>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span><span class="math">R<sub>2,A</sub></span> = <span class="value" id="R2A-value">50.12</span> Hz</span>
+                            <span style="color: #888; font-size: 0.9em;">Transverse Relaxation A</span>
+                        </div>
+                        <input type="range" id="R2A" class="slider" min="-1" max="3" step="0.01" value="1.7">
                     </div>
-                    <input type="range" id="R2B" class="slider" min="-1" max="3" step="0.01" value="1.7">
-                </div>
 
-                <div class="control-group">
-                    <div class="control-label">
-                        <span><span class="math">ΔΩ<sub>A</sub></span> = <span class="value" id="deltaA-value">-400</span> Hz</span>
-                        <span style="color: #888; font-size: 0.9em;">Chemical Shift A</span>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span><span class="math">R<sub>2,B</sub></span> = <span class="value" id="R2B-value">50.12</span> Hz</span>
+                            <span style="color: #888; font-size: 0.9em;">Transverse Relaxation B</span>
+                        </div>
+                        <input type="range" id="R2B" class="slider" min="-1" max="3" step="0.01" value="1.7">
                     </div>
-                    <input type="range" id="deltaA" class="slider" min="-1000" max="1000" step="1" value="-400">
-                </div>
 
-                <div class="control-group">
-                    <div class="control-label">
-                        <span><span class="math">ΔΩ<sub>B</sub></span> = <span class="value" id="deltaB-value">500</span> Hz</span>
-                        <span style="color: #888; font-size: 0.9em;">Chemical Shift B</span>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span><span class="math">ΔΩ<sub>A</sub></span> = <span class="value" id="deltaA-value">-400</span> Hz</span>
+                            <span style="color: #888; font-size: 0.9em;">Chemical Shift A</span>
+                        </div>
+                        <input type="range" id="deltaA" class="slider" min="-1000" max="1000" step="1" value="-400">
                     </div>
-                    <input type="range" id="deltaB" class="slider" min="-1000" max="1000" step="1" value="500">
-                </div>
 
-                <div class="control-group">
-                    <div class="control-label">
-                        <span><span class="math">I<sub>min</sub></span> = <span class="value" id="ftMin-value">-2.0</span></span>
-                        <span style="color: #888; font-size: 0.9em;">Intensity Min</span>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span><span class="math">ΔΩ<sub>B</sub></span> = <span class="value" id="deltaB-value">500</span> Hz</span>
+                            <span style="color: #888; font-size: 0.9em;">Chemical Shift B</span>
+                        </div>
+                        <input type="range" id="deltaB" class="slider" min="-1000" max="1000" step="1" value="500">
                     </div>
-                    <input type="range" id="ftMin" class="slider" min="-20" max="0" step="0.1" value="-2">
-                </div>
 
-                <div class="control-group">
-                    <div class="control-label">
-                        <span><span class="math">I<sub>max</sub></span> = <span class="value" id="ftMax-value">50.0</span></span>
-                        <span style="color: #888; font-size: 0.9em;">Intensity Max</span>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span><span class="math">I<sub>min</sub></span> = <span class="value" id="ftMin-value">-2.0</span></span>
+                            <span style="color: #888; font-size: 0.9em;">Intensity Min</span>
+                        </div>
+                        <input type="range" id="ftMin" class="slider" min="-20" max="0" step="0.1" value="-2">
                     </div>
-                    <input type="range" id="ftMax" class="slider" min="1" max="200" step="0.1" value="50">
+
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span><span class="math">I<sub>max</sub></span> = <span class="value" id="ftMax-value">50.0</span></span>
+                            <span style="color: #888; font-size: 0.9em;">Intensity Max</span>
+                        </div>
+                        <input type="range" id="ftMax" class="slider" min="1" max="200" step="0.1" value="50">
+                    </div>
+
+                    <div class="control-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="equalK">
+                            <label for="equalK">Set <span class="math">k<sub>BA</sub> = k<sub>AB</sub></span></label>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="lockRatio">
+                            <label for="lockRatio">Lock ratio <span class="math">k<sub>BA</sub>/k<sub>AB</sub></span></label>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="control-group">
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="equalK">
-                        <label for="equalK">Set <span class="math">k<sub>BA</sub> = k<sub>AB</sub></span></label>
+                <div class="visualization-panel">
+                    <div class="chart-container">
+                        <div class="chart-title">NMR Spectrum</div>
+                        <div id="spectrum-plot"></div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-title">Free Induction Decay (FID)</div>
+                        <div id="fid-plot"></div>
+                    </div>
+
+                    <div class="images-container">
+                        <div class="image-wrapper">
+                            <img src="public/exchange-illustration.png" alt="Exchange Illustration" onerror="this.style.display='none'">
+                        </div>
+                        <div class="image-wrapper">
+                            <img src="public/bloch-mcconnell.png" alt="Bloch-McConnell" onerror="this.style.display='none'">
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="visualization-panel">
-                <div class="chart-container">
-                    <div class="chart-title">NMR Spectrum</div>
-                    <div id="spectrum-plot"></div>
-                </div>
-
-                <div class="chart-container">
-                    <div class="chart-title">Free Induction Decay (FID)</div>
-                    <div id="fid-plot"></div>
-                </div>
-
-                <div class="images-container">
-                    <div class="image-wrapper">
-                        <img src="public/exchange-illustration.png" alt="Exchange Illustration" onerror="this.style.display='none'">
+        <div class="tab-content" id="tab-animation">
+            <div class="animation-container">
+                <div class="animation-controls">
+                    <h2>Animation Controls</h2>
+                    <div class="control-group">
+                        <div class="view-toggle">
+                            <button id="view-concentric" class="view-btn active">Concentric</button>
+                            <button id="view-vector" class="view-btn">Vector</button>
+                        </div>
                     </div>
-                    <div class="image-wrapper">
-                        <img src="public/bloch-mcconnell.png" alt="Bloch-McConnell" onerror="this.style.display='none'">
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Number of Spins = <span class="value" id="anim-circles-value">50</span></span>
+                        </div>
+                        <input type="range" id="anim-circles" class="slider" min="2" max="500" step="2" value="50">
+                    </div>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Rate A = <span class="value" id="anim-rate-value">0.25</span> Hz</span>
+                        </div>
+                        <input type="range" id="anim-rate" class="slider" min="0.01" max="4" step="0.01" value="0.25">
+                    </div>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Rate B = <span class="value" id="anim-rate2-value">0.25</span> Hz</span>
+                        </div>
+                        <input type="range" id="anim-rate2" class="slider" min="0.01" max="4" step="0.01" value="0.25">
+                    </div>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Exchange Rate = <span class="value" id="anim-exchange-value">0.0</span> Hz</span>
+                        </div>
+                        <input type="range" id="anim-exchange" class="slider" min="0" max="20" step="0.1" value="0">
+                    </div>
+                    <div id="anim-single-echo-controls" class="control-group" style="display: none;">
+                        <div class="control-label">
+                            <span>τ = <span class="value" id="anim-tau-value">1.0</span> s</span>
+                            <span style="color: #888; font-size: 0.9em;">Echo delay</span>
+                        </div>
+                        <input type="range" id="anim-tau" class="slider" min="0.1" max="2" step="0.1" value="1">
+                    </div>
+                    <div class="control-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="anim-single-echo">
+                            <label for="anim-single-echo">Single Spin Echo (τ – 2τ – τ)</label>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span><span class="math">ν<sub>CPMG</sub></span> = <span class="value" id="anim-echo-rate-value">0</span> Hz</span>
+                            <span style="color: #888; font-size: 0.9em;">Echo Rate</span>
+                        </div>
+                        <input type="range" id="anim-echo-rate" class="slider" min="0" max="200" step="1" value="0">
+                    </div>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Number of Echoes = <span class="value" id="anim-num-echoes-value">4</span></span>
+                            <span style="color: #888; font-size: 0.9em;">(always even)</span>
+                        </div>
+                        <input type="range" id="anim-num-echoes" class="slider" min="2" max="2000" step="2" value="4">
+                    </div>
+                    <div class="control-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="anim-cpmg-lock">
+                            <label for="anim-cpmg-lock">CPMG Dispersion (fixed T = 10 s)</label>
+                        </div>
+                    </div>
+                    <button id="anim-play" class="anim-button">Play</button>
+                </div>
+                <div class="animation-right">
+                    <div class="animation-plots">
+                        <div class="animation-plot-wrapper">
+                            <div id="animation-plot"></div>
+                        </div>
+                        <div class="signal-plot-wrapper">
+                            <div id="signal-plot"></div>
+                        </div>
+                    </div>
+                    <div class="mx-plot-wrapper">
+                        <div id="mx-plot"></div>
                     </div>
                 </div>
             </div>
