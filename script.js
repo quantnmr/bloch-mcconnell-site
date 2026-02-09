@@ -440,27 +440,41 @@ function initialize() {
     try {
         // Flag to prevent infinite loops when syncing sliders
         let syncingSliders = false;
-        
+        // When "lock ratio" is checked, log10(k_BA/k_AB) = kBA_slider - kAB_slider
+        let lockedLogRatio = 0;
+
         document.getElementById('kAB').addEventListener('input', function() {
             const equalK = document.getElementById('equalK').checked;
+            const lockRatio = document.getElementById('lockRatio').checked;
             if (equalK && !syncingSliders) {
                 syncingSliders = true;
                 document.getElementById('kBA').value = this.value;
                 syncingSliders = false;
-            }
-            updatePlots();
-        });
-        
-        document.getElementById('kBA').addEventListener('input', function() {
-            const equalK = document.getElementById('equalK').checked;
-            if (equalK && !syncingSliders) {
+            } else if (lockRatio && !syncingSliders) {
                 syncingSliders = true;
-                document.getElementById('kAB').value = this.value;
+                const v = Math.max(-1, Math.min(6, parseFloat(this.value) + lockedLogRatio));
+                document.getElementById('kBA').value = v;
                 syncingSliders = false;
             }
             updatePlots();
         });
-        
+
+        document.getElementById('kBA').addEventListener('input', function() {
+            const equalK = document.getElementById('equalK').checked;
+            const lockRatio = document.getElementById('lockRatio').checked;
+            if (equalK && !syncingSliders) {
+                syncingSliders = true;
+                document.getElementById('kAB').value = this.value;
+                syncingSliders = false;
+            } else if (lockRatio && !syncingSliders) {
+                syncingSliders = true;
+                const v = Math.max(-1, Math.min(6, parseFloat(this.value) - lockedLogRatio));
+                document.getElementById('kAB').value = v;
+                syncingSliders = false;
+            }
+            updatePlots();
+        });
+
         document.getElementById('R2A').addEventListener('input', updatePlots);
         document.getElementById('R2B').addEventListener('input', updatePlots);
         document.getElementById('deltaA').addEventListener('input', updatePlots);
@@ -470,6 +484,14 @@ function initialize() {
         document.getElementById('equalK').addEventListener('change', function() {
             if (this.checked) {
                 document.getElementById('kBA').value = document.getElementById('kAB').value;
+            }
+            updatePlots();
+        });
+        document.getElementById('lockRatio').addEventListener('change', function() {
+            if (this.checked) {
+                const kAB = document.getElementById('kAB');
+                const kBA = document.getElementById('kBA');
+                lockedLogRatio = parseFloat(kBA.value) - parseFloat(kAB.value);
             }
             updatePlots();
         });
@@ -484,11 +506,657 @@ function initialize() {
     }
 }
 
+// ============================================================
+// Tab switching
+// ============================================================
+function initTabs() {
+    const buttons = document.querySelectorAll('.tab-button');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Deactivate all
+            buttons.forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+            // Activate clicked
+            btn.classList.add('active');
+            const tabId = 'tab-' + btn.dataset.tab;
+            document.getElementById(tabId).classList.add('active');
+
+            // If switching to animation tab, initialise/resize the plot
+            if (btn.dataset.tab === 'animation' && !animationInitialized) {
+                initAnimation();
+            }
+            if (btn.dataset.tab === 'animation') {
+                Plotly.Plots.resize('animation-plot');
+            }
+        });
+    });
+}
+
+// ============================================================
+// Precession animation (dots on concentric circles)
+// ============================================================
+let animationInitialized = false;
+let animRunning = false;
+let animFrameId = null;
+let animElapsed = 0;         // total elapsed animation time in seconds
+let animLastTimestamp = 0;   // last frame timestamp
+let precessionDirection = 1; // +1 normal, -1 after echo
+let viewMode = 'concentric'; // 'concentric' or 'vector'
+let singleEchoTau = null;    // when in single-echo mode, τ in seconds (from slider at Play, or from Echo button press)
+
+// Histogram bins for y-component distribution
+const HIST_NBINS = 40;
+const HIST_BIN_EDGES = [];
+const HIST_BIN_CENTERS = [];
+for (let i = 0; i <= HIST_NBINS; i++) {
+    HIST_BIN_EDGES.push(-1 + (2 * i / HIST_NBINS));
+}
+for (let i = 0; i < HIST_NBINS; i++) {
+    HIST_BIN_CENTERS.push((HIST_BIN_EDGES[i] + HIST_BIN_EDGES[i + 1]) / 2);
+}
+
+// Mx(t) time series for bottom plot
+let mxTimes = [];
+let mxValues = [];
+
+// Color for rate A spins and rate B spins
+const COLOR_A = '#667eea';
+const COLOR_B = '#e84393';
+
+// Per-spin state
+let spinAssignment = []; // 0 = rate A, 1 = rate B
+let spinPhase = [];      // accumulated phase angle (radians) per spin
+
+// Build a random 50/50 assignment for n spins
+function randomizeAssignment(n) {
+    const half = Math.floor(n / 2);
+    spinAssignment = [];
+    for (let i = 0; i < n; i++) {
+        spinAssignment.push(i < half ? 0 : 1);
+    }
+    // Fisher-Yates shuffle
+    for (let i = n - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [spinAssignment[i], spinAssignment[j]] = [spinAssignment[j], spinAssignment[i]];
+    }
+    // Reset phases to 0
+    spinPhase = new Array(n).fill(0);
+}
+
+// Apply stochastic exchange: each spin has probability k_ex * dt of swapping
+// its assignment (A↔B) while keeping its current phase
+function applyExchange(dt) {
+    const kEx = parseFloat(document.getElementById('anim-exchange').value);
+    if (kEx <= 0) return;
+    const pSwap = kEx * dt; // probability of exchange in this time step
+    const n = spinAssignment.length;
+    for (let i = 0; i < n; i++) {
+        if (Math.random() < pSwap) {
+            spinAssignment[i] = spinAssignment[i] === 0 ? 1 : 0;
+        }
+    }
+}
+
+function initAnimation() {
+    animationInitialized = true;
+
+    const rateSlider = document.getElementById('anim-rate');
+    const rate2Slider = document.getElementById('anim-rate2');
+    const exchangeSlider = document.getElementById('anim-exchange');
+    const echoRateSlider = document.getElementById('anim-echo-rate');
+    const numEchoesSlider = document.getElementById('anim-num-echoes');
+    const singleEchoCheckbox = document.getElementById('anim-single-echo');
+    const singleEchoControls = document.getElementById('anim-single-echo-controls');
+    const tauSlider = document.getElementById('anim-tau');
+    const cpmgLockCheckbox = document.getElementById('anim-cpmg-lock');
+    const circlesSlider = document.getElementById('anim-circles');
+    const playBtn = document.getElementById('anim-play');
+
+    const CPMG_FIXED_TIME = 10; // seconds
+
+    // When CPMG Dispersion is on, auto-compute number of echoes from ν_CPMG
+    function syncEchoesFromRate() {
+        if (!cpmgLockCheckbox.checked) return;
+        const nu = parseFloat(echoRateSlider.value);
+        if (nu <= 0) return;
+        let N = Math.round(CPMG_FIXED_TIME * nu);
+        if (N < 2) N = 2;
+        if (N % 2 !== 0) N += 1;
+        const max = parseInt(numEchoesSlider.max);
+        if (N > max) N = max;
+        numEchoesSlider.value = N;
+        document.getElementById('anim-num-echoes-value').textContent = N;
+    }
+
+    // When Single Echo is on, show τ slider and disable ν_CPMG / num echoes (they’re not used)
+    function applySingleEcho(enabled) {
+        singleEchoControls.style.display = enabled ? '' : 'none';
+        echoRateSlider.disabled = enabled;
+        numEchoesSlider.disabled = enabled;
+        if (!enabled) singleEchoTau = null;
+    }
+
+    function resetAnim() {
+        animElapsed = 0;
+        precessionDirection = 1;
+        spinPhase = new Array(spinAssignment.length).fill(0);
+        drawAnimFrame();
+    }
+
+    // Display value updates
+    rateSlider.addEventListener('input', () => {
+        document.getElementById('anim-rate-value').textContent =
+            parseFloat(rateSlider.value).toFixed(2);
+        resetAnim();
+    });
+    rate2Slider.addEventListener('input', () => {
+        document.getElementById('anim-rate2-value').textContent =
+            parseFloat(rate2Slider.value).toFixed(2);
+        resetAnim();
+    });
+    exchangeSlider.addEventListener('input', () => {
+        document.getElementById('anim-exchange-value').textContent =
+            parseFloat(exchangeSlider.value).toFixed(1);
+    });
+    echoRateSlider.addEventListener('input', () => {
+        document.getElementById('anim-echo-rate-value').textContent =
+            parseFloat(echoRateSlider.value).toFixed(1);
+        syncEchoesFromRate();
+    });
+    numEchoesSlider.addEventListener('input', () => {
+        document.getElementById('anim-num-echoes-value').textContent =
+            numEchoesSlider.value;
+    });
+    tauSlider.addEventListener('input', () => {
+        document.getElementById('anim-tau-value').textContent =
+            parseFloat(tauSlider.value).toFixed(1);
+    });
+
+    singleEchoCheckbox.addEventListener('change', () => {
+        if (singleEchoCheckbox.checked) {
+            cpmgLockCheckbox.checked = false;
+        }
+        applySingleEcho(singleEchoCheckbox.checked);
+        numEchoesSlider.disabled = singleEchoCheckbox.checked || cpmgLockCheckbox.checked;
+    });
+
+    cpmgLockCheckbox.addEventListener('change', () => {
+        if (cpmgLockCheckbox.checked) {
+            singleEchoCheckbox.checked = false;
+            applySingleEcho(false);
+        }
+        echoRateSlider.disabled = false;
+        numEchoesSlider.disabled = cpmgLockCheckbox.checked;
+        syncEchoesFromRate();
+    });
+    circlesSlider.addEventListener('input', () => {
+        document.getElementById('anim-circles-value').textContent = circlesSlider.value;
+        randomizeAssignment(parseInt(circlesSlider.value));
+        buildAnimPlot();
+        resetAnim();
+    });
+
+    playBtn.addEventListener('click', () => {
+        animRunning = !animRunning;
+        playBtn.textContent = animRunning ? 'Pause' : 'Play';
+        if (animRunning) {
+            animElapsed = 0;
+            precessionDirection = 1;
+            spinPhase = new Array(spinAssignment.length).fill(0);
+            if (singleEchoCheckbox.checked) {
+                singleEchoTau = parseFloat(tauSlider.value);
+            } else {
+                singleEchoTau = null;
+            }
+            buildAnimPlot();
+            initSignalPlot();
+            initMxPlot();
+            drawAnimFrame();
+            updateSignalPlot();
+            updateMxPlot();
+            animLastTimestamp = performance.now();
+            animateLoop();
+        } else {
+            singleEchoTau = null;
+        }
+    });
+
+    // View mode toggle
+    const viewConcentricBtn = document.getElementById('view-concentric');
+    const viewVectorBtn = document.getElementById('view-vector');
+
+    viewConcentricBtn.addEventListener('click', () => {
+        viewMode = 'concentric';
+        viewConcentricBtn.classList.add('active');
+        viewVectorBtn.classList.remove('active');
+        buildAnimPlot();
+        drawAnimFrame();
+    });
+    viewVectorBtn.addEventListener('click', () => {
+        viewMode = 'vector';
+        viewVectorBtn.classList.add('active');
+        viewConcentricBtn.classList.remove('active');
+        buildAnimPlot();
+        drawAnimFrame();
+    });
+
+    // Initial assignment
+    const nCircles = parseInt(circlesSlider.value);
+    randomizeAssignment(nCircles);
+
+    // Draw concentric circle outlines and initial dot positions
+    buildAnimPlot();
+    initSignalPlot();
+    initMxPlot();
+    drawAnimFrame(); // draw the stopped frame (all dots on +x axis)
+}
+
+function buildAnimPlot() {
+    const nCircles = parseInt(document.getElementById('anim-circles').value);
+
+    const layout = {
+        xaxis: {
+            range: [-1.25, 1.25],
+            scaleanchor: 'y',
+            showgrid: false,
+            zeroline: false,
+            showticklabels: false
+        },
+        yaxis: {
+            range: [-1.25, 1.25],
+            showgrid: false,
+            zeroline: false,
+            showticklabels: false
+        },
+        shapes: [],
+        margin: { l: 10, r: 10, t: 10, b: 10 },
+        plot_bgcolor: '#fafafa',
+        height: 500,
+        showlegend: false
+    };
+
+    if (viewMode === 'concentric') {
+        // Concentric circles as background shapes
+        const shapes = [];
+        for (let c = 0; c < nCircles; c++) {
+            const r = (c + 1) / nCircles;
+            shapes.push({
+                type: 'circle',
+                xref: 'x', yref: 'y',
+                x0: -r, y0: -r, x1: r, y1: r,
+                line: { color: 'rgba(150,150,150,0.3)', width: 1 },
+                fillcolor: 'transparent'
+            });
+        }
+        layout.shapes = shapes;
+
+        Plotly.react('animation-plot', [{
+            x: [], y: [],
+            mode: 'markers',
+            marker: { size: 5, color: [] },
+            type: 'scatter'
+        }], layout, { responsive: true, displayModeBar: false });
+    } else {
+        // Vector mode: one outer circle + line traces (one per spin)
+        layout.shapes = [{
+            type: 'circle',
+            xref: 'x', yref: 'y',
+            x0: -1, y0: -1, x1: 1, y1: 1,
+            line: { color: 'rgba(150,150,150,0.4)', width: 2 },
+            fillcolor: 'transparent'
+        }];
+
+        // Create one trace per spin (line from center to dot)
+        const traces = [];
+        for (let c = 0; c < nCircles; c++) {
+            const color = spinAssignment[c] === 0 ? COLOR_A : COLOR_B;
+            traces.push({
+                x: [0, 1], y: [0, 0],
+                mode: 'lines+markers',
+                line: { color: color, width: 1.5 },
+                marker: { size: 5, color: color, symbol: 'circle' },
+                type: 'scatter'
+            });
+        }
+
+        Plotly.react('animation-plot', traces, layout, { responsive: true, displayModeBar: false });
+    }
+}
+
+// Advance all spin phases by dt seconds
+function stepPhases(dt) {
+    const rateA = parseFloat(document.getElementById('anim-rate').value);
+    const rateB = parseFloat(document.getElementById('anim-rate2').value);
+    const n = spinAssignment.length;
+
+    for (let c = 0; c < n; c++) {
+        const rate = spinAssignment[c] === 0 ? rateA : rateB;
+        spinPhase[c] += 2 * Math.PI * rate * dt * precessionDirection;
+    }
+}
+
+function initSignalPlot() {
+    const n = spinAssignment.length || 100;
+    const maxCount = Math.ceil(n * 0.6);
+    const layout = {
+        xaxis: { range: [-maxCount, maxCount], zeroline: true,
+                 zerolinecolor: 'rgba(100,100,100,0.6)', zerolinewidth: 1, showticklabels: false },
+        yaxis: { range: [-1.25, 1.25], showgrid: false, zeroline: true,
+                 zerolinecolor: 'rgba(150,150,150,0.5)', showticklabels: false },
+        margin: { l: 10, r: 10, t: 10, b: 10 },
+        height: 500,
+        plot_bgcolor: '#fafafa',
+        bargap: 0.05,
+        showlegend: false
+    };
+    Plotly.react('signal-plot', [
+        {
+            x: new Array(HIST_NBINS).fill(0),
+            y: HIST_BIN_CENTERS,
+            type: 'bar',
+            orientation: 'h',
+            marker: { color: 'black', opacity: 0.8 },
+            width: 2 / HIST_NBINS * 0.9
+        },
+        {
+            x: new Array(HIST_NBINS).fill(0),
+            y: HIST_BIN_CENTERS,
+            type: 'bar',
+            orientation: 'h',
+            marker: { color: 'black', opacity: 0.8 },
+            width: 2 / HIST_NBINS * 0.9
+        }
+    ], layout, { responsive: true, displayModeBar: false });
+}
+
+function updateSignalPlot() {
+    const n = spinPhase.length;
+    if (n === 0) return;
+
+    const binWidth = 2 / HIST_NBINS;
+    const countsPositive = new Array(HIST_NBINS).fill(0);
+    const countsNegative = new Array(HIST_NBINS).fill(0);
+
+    for (let i = 0; i < n; i++) {
+        const phase = spinPhase[i] || 0;
+        const xVal = Math.cos(phase);
+        const yVal = Math.sin(phase);
+        let bin = Math.floor((yVal + 1) / binWidth);
+        if (bin < 0) bin = 0;
+        if (bin >= HIST_NBINS) bin = HIST_NBINS - 1;
+        if (xVal >= 0) {
+            countsPositive[bin]++;
+        } else {
+            countsNegative[bin]++;
+        }
+    }
+
+    const maxCount = Math.max(
+        Math.max(...countsPositive),
+        Math.max(...countsNegative),
+        n * 0.3
+    );
+    const symRange = maxCount * 1.15;
+
+    Plotly.update('signal-plot',
+        {
+            x: [countsPositive, countsNegative.map(c => -c)]
+        },
+        {
+            'xaxis.range': [-symRange, symRange]
+        }
+    );
+}
+
+function computeMx() {
+    const n = spinPhase.length;
+    if (n === 0) return 0;
+    let sum = 0;
+    for (let i = 0; i < n; i++) {
+        sum += Math.cos(spinPhase[i] || 0);
+    }
+    return sum / n;
+}
+
+function initMxPlot() {
+    mxTimes = [];
+    mxValues = [];
+    const totalTime = getTotalTime();
+    const xMax = (totalTime !== Infinity && totalTime > 0) ? totalTime : 10;
+    const layout = {
+        xaxis: { title: 'Time (s)', range: [0, xMax], zeroline: false },
+        yaxis: { title: 'M<sub>x</sub> / M<sub>0</sub>', range: [-1.1, 1.1], zeroline: true, zerolinecolor: '#ccc' },
+        margin: { l: 55, r: 20, t: 8, b: 40 },
+        height: 220,
+        plot_bgcolor: '#fafafa'
+    };
+    Plotly.react('mx-plot', [{
+        x: [],
+        y: [],
+        mode: 'lines',
+        line: { color: '#333', width: 2 },
+        type: 'scatter'
+    }], layout, { responsive: true, displayModeBar: false });
+}
+
+function updateMxPlot() {
+    mxTimes.push(animElapsed);
+    mxValues.push(computeMx());
+    const totalTime = getTotalTime();
+    const xMax = (totalTime !== Infinity && totalTime > 0) ? Math.max(totalTime, animElapsed * 1.05) : Math.max(10, animElapsed * 1.05);
+    Plotly.update('mx-plot',
+        { x: [mxTimes], y: [mxValues] },
+        { 'xaxis.range': [0, xMax] }
+    );
+}
+
+function drawAnimFrame() {
+    const nCircles = parseInt(document.getElementById('anim-circles').value);
+
+    if (viewMode === 'concentric') {
+        const xs = [];
+        const ys = [];
+        const colors = [];
+
+        for (let c = 0; c < nCircles; c++) {
+            const r = (c + 1) / nCircles;
+            const angle = spinPhase[c] || 0;
+            xs.push(r * Math.cos(angle));
+            ys.push(r * Math.sin(angle));
+            colors.push(spinAssignment[c] === 0 ? COLOR_A : COLOR_B);
+        }
+
+        // Rebuild shapes in case nCircles changed
+        const shapes = [];
+        for (let c = 0; c < nCircles; c++) {
+            const r = (c + 1) / nCircles;
+            shapes.push({
+                type: 'circle',
+                xref: 'x', yref: 'y',
+                x0: -r, y0: -r, x1: r, y1: r,
+                line: { color: 'rgba(150,150,150,0.3)', width: 1 },
+                fillcolor: 'transparent'
+            });
+        }
+
+        Plotly.update('animation-plot',
+            { x: [xs], y: [ys], 'marker.color': [colors] },
+            { shapes: shapes }
+        );
+    } else {
+        // Vector mode: update each trace (one per spin)
+        // Guard: if trace count doesn't match, rebuild the plot
+        const plotDiv = document.getElementById('animation-plot');
+        if (!plotDiv.data || plotDiv.data.length !== nCircles) {
+            buildAnimPlot();
+        }
+
+        const xArrays = [];
+        const yArrays = [];
+        const colorArrays = [];
+
+        for (let c = 0; c < nCircles; c++) {
+            const angle = spinPhase[c] || 0;
+            const tipX = Math.cos(angle);
+            const tipY = Math.sin(angle);
+            const color = spinAssignment[c] === 0 ? COLOR_A : COLOR_B;
+            xArrays.push([0, tipX]);
+            yArrays.push([0, tipY]);
+            colorArrays.push(color);
+        }
+
+        // Update all traces at once
+        const traceIndices = Array.from({ length: nCircles }, (_, i) => i);
+        Plotly.update('animation-plot',
+            {
+                x: xArrays,
+                y: yArrays,
+                'line.color': colorArrays,
+                'marker.color': colorArrays
+            },
+            {},
+            traceIndices
+        );
+    }
+}
+
+// CPMG sequence: τ - 2τ - 2τ - ... - 2τ - τ
+// N refocusing pulses at times: τ, 3τ, 5τ, ..., (2N-1)τ
+// Total time: 2Nτ
+// Segments:
+//   [0, τ)       → direction +1  (first half-echo)
+//   [τ, 3τ)      → direction -1  (full echo)
+//   [3τ, 5τ)     → direction +1  (full echo)
+//   ...
+//   [(2N-1)τ, 2Nτ] → last half-echo
+//
+function getEchoTau() {
+    const singleEchoEl = document.getElementById('anim-single-echo');
+    const cpmgEl = document.getElementById('anim-cpmg-lock');
+    if (singleEchoEl && singleEchoEl.checked && singleEchoTau != null) {
+        return singleEchoTau;
+    }
+    if (!cpmgEl || !cpmgEl.checked) {
+        return Infinity; // free precession when neither single echo nor CPMG is on
+    }
+    const echoRate = parseFloat(document.getElementById('anim-echo-rate').value);
+    if (echoRate <= 0) return Infinity;
+    return 1 / (2 * echoRate);
+}
+
+function getDirection(t) {
+    const tau = getEchoTau();
+    if (tau === Infinity) return 1; // no echoes, free precession
+
+    if (t < tau) {
+        return 1; // first segment: duration τ, direction +1
+    }
+    // After the first τ, segments are 2τ long
+    const tPastFirst = t - tau;
+    const segIndex = 1 + Math.floor(tPastFirst / (2 * tau));
+    return (segIndex % 2 === 0) ? 1 : -1;
+}
+
+// Find the time of the next direction boundary after time t
+function getNextBoundary(t) {
+    const tau = getEchoTau();
+    if (tau === Infinity) return Infinity;
+
+    // Boundaries are at: τ, 3τ, 5τ, 7τ, ...
+    if (t < tau) return tau;
+    const tPastFirst = t - tau;
+    const segIndex = Math.floor(tPastFirst / (2 * tau));
+    return tau + (segIndex + 1) * 2 * tau;
+}
+
+// Total duration: single-echo mode 4τ, CPMG 2*N*τ, else Infinity (free precession)
+function getTotalTime() {
+    const singleEchoEl = document.getElementById('anim-single-echo');
+    const cpmgEl = document.getElementById('anim-cpmg-lock');
+    if (singleEchoEl && singleEchoEl.checked && singleEchoTau != null) {
+        return 4 * singleEchoTau;
+    }
+    if (!cpmgEl || !cpmgEl.checked) {
+        return Infinity; // free precession
+    }
+    const numEchoes = parseInt(document.getElementById('anim-num-echoes').value);
+    const tau = getEchoTau();
+    if (tau === Infinity) return Infinity;
+    return 2 * numEchoes * tau;
+}
+
+function animateLoop() {
+    if (!animRunning) return;
+
+    const now = performance.now();
+    let dt = (now - animLastTimestamp) / 1000;
+    animLastTimestamp = now;
+
+    // Cap dt to avoid spiral of death if browser lags
+    if (dt > 0.1) dt = 0.1;
+
+    const totalTime = getTotalTime();
+
+    // Clamp if we'd overshoot the total experiment time
+    if (animElapsed + dt >= totalTime) {
+        dt = totalTime - animElapsed;
+    }
+
+    // Process the time step, splitting at direction boundaries
+    // so the direction is always correct for each sub-step.
+    // Apply exchange once for the whole frame (not per sub-step)
+    // to avoid excessive random number generation.
+    let remaining = dt;
+    let iterations = 0;
+    const maxIterations = 200;
+
+    while (remaining > 1e-10 && iterations < maxIterations) {
+        precessionDirection = getDirection(animElapsed);
+
+        // How far to the next direction flip?
+        const nextBoundary = getNextBoundary(animElapsed);
+        let stepToTake = nextBoundary - animElapsed;
+
+        // Guard against floating point issues
+        if (stepToTake < 1e-12) {
+            animElapsed += 1e-12;
+            continue;
+        }
+
+        stepToTake = Math.min(remaining, stepToTake);
+        stepPhases(stepToTake);
+        animElapsed += stepToTake;
+        remaining -= stepToTake;
+        iterations++;
+    }
+
+    // Apply exchange once per frame using total dt
+    applyExchange(dt);
+
+    drawAnimFrame();
+    updateSignalPlot();
+    updateMxPlot();
+
+    // Stop if we've reached the end of the echo train
+    if (animElapsed >= totalTime) {
+        animRunning = false;
+        document.getElementById('anim-play').textContent = 'Play';
+        singleEchoTau = null;
+        return;
+    }
+
+    animFrameId = requestAnimationFrame(animateLoop);
+}
+
+// ============================================================
+// Bootstrap
+// ============================================================
+
 // Wait for both DOM and Plotly to be ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initialize);
+    document.addEventListener('DOMContentLoaded', () => { initTabs(); initialize(); });
 } else {
-    // DOM is already ready, but wait for Plotly
+    initTabs();
     initialize();
 }
 
