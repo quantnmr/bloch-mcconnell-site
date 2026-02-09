@@ -511,8 +511,18 @@ function initSimulation() {
 // Bloch Equations tab (introductory – no exchange)
 // ============================================================
 let blochInitialized = false;
+let blochVectorInitialized = false;
+let blochVectorAnimationId = null;
+let blochVectorTime = 0;
+let blochVectorLastTs = null;
+const blochVectorTraceIndex = 3;
+const blochVectorPathIndex = 4;
+let blochVectorPathX = [];
+let blochVectorPathY = [];
+let blochVectorPathZ = [];
+const blochVectorMaxStep = 0.002;
 
-function simulateBlochFID(delta, R2, flipAngleDeg, t_max = 0.1, n_points = 256) {
+function simulateBlochFID(delta, R2, flipAngleDeg, t_max = 1.0, n_points = 256) {
     const alpha = flipAngleDeg * Math.PI / 180;
     const sinAlpha = Math.sin(alpha);
     const omega = 2 * Math.PI * delta;
@@ -531,11 +541,196 @@ function simulateBlochFID(delta, R2, flipAngleDeg, t_max = 0.1, n_points = 256) 
     return { timePoints, fid };
 }
 
+function getBlochVectorParams() {
+    const R2 = Math.pow(10, parseFloat(document.getElementById('bloch-R2').value));
+    const R1 = Math.pow(10, parseFloat(document.getElementById('bloch-R1').value));
+    const delta = parseFloat(document.getElementById('bloch-delta').value);
+    const flipAngle = parseFloat(document.getElementById('bloch-flip').value);
+    const speed = Math.pow(10, parseFloat(document.getElementById('bloch-speed').value));
+    return { R2, R1, delta, flipAngle, speed };
+}
+
+function computeBlochVector(t, R2, R1, delta, flipAngleDeg) {
+    const alpha = flipAngleDeg * Math.PI / 180;
+    const omega = 2 * Math.PI * delta;
+    const decay = Math.exp(-R2 * t);
+    const Mx = Math.sin(alpha) * decay * Math.cos(omega * t);
+    const My = Math.sin(alpha) * decay * Math.sin(omega * t);
+    const M0 = 1;
+    const Mz0 = Math.cos(alpha);
+    const Mz = M0 - (M0 - Mz0) * Math.exp(-R1 * t);
+    return { Mx, My, Mz };
+}
+
+function appendBlochVectorPath(Mx, My, Mz) {
+    blochVectorPathX.push(Mx);
+    blochVectorPathY.push(My);
+    blochVectorPathZ.push(Mz);
+}
+
+function restyleBlochVector(Mx, My, Mz) {
+    Plotly.restyle('bloch-vector-plot', {
+        x: [[0, Mx]],
+        y: [[0, My]],
+        z: [[0, Mz]]
+    }, [blochVectorTraceIndex]);
+    Plotly.restyle('bloch-vector-plot', {
+        x: [blochVectorPathX],
+        y: [blochVectorPathY],
+        z: [blochVectorPathZ]
+    }, [blochVectorPathIndex]);
+}
+
+function initBlochVectorPlot() {
+    if (typeof Plotly === 'undefined') return;
+    const plotDiv = document.getElementById('bloch-vector-plot');
+    if (!plotDiv) return;
+
+    const { R2, R1, delta, flipAngle } = getBlochVectorParams();
+    const { Mx, My, Mz } = computeBlochVector(0, R2, R1, delta, flipAngle);
+
+    const axisX = {
+        x: [0, 1],
+        y: [0, 0],
+        z: [0, 0],
+        type: 'scatter3d',
+        mode: 'lines',
+        line: { color: '#999', width: 3 },
+        hoverinfo: 'skip',
+        showlegend: false
+    };
+    const axisY = {
+        x: [0, 0],
+        y: [0, 1],
+        z: [0, 0],
+        type: 'scatter3d',
+        mode: 'lines',
+        line: { color: '#999', width: 3 },
+        hoverinfo: 'skip',
+        showlegend: false
+    };
+    const axisZ = {
+        x: [0, 0],
+        y: [0, 0],
+        z: [0, 1],
+        type: 'scatter3d',
+        mode: 'lines',
+        line: { color: '#999', width: 3 },
+        hoverinfo: 'skip',
+        showlegend: false
+    };
+    const vectorTrace = {
+        x: [0, Mx],
+        y: [0, My],
+        z: [0, Mz],
+        type: 'scatter3d',
+        mode: 'lines+markers',
+        line: { color: '#667eea', width: 6 },
+        marker: { size: 4, color: '#667eea' },
+        name: 'M'
+    };
+    const pathTrace = {
+        x: [Mx],
+        y: [My],
+        z: [Mz],
+        type: 'scatter3d',
+        mode: 'lines',
+        line: { color: 'rgba(220, 53, 69, 0.7)', width: 3 },
+        hoverinfo: 'skip',
+        showlegend: false
+    };
+
+    const layout = {
+        margin: { l: 0, r: 0, t: 10, b: 0 },
+        height: 400,
+        showlegend: false,
+        scene: {
+            aspectmode: 'cube',
+            xaxis: { range: [-1.1, 1.1], title: 'Mx', zeroline: true },
+            yaxis: { range: [-1.1, 1.1], title: 'My', zeroline: true },
+            zaxis: { range: [-1.1, 1.1], title: 'Mz', zeroline: true }
+        }
+    };
+
+    Plotly.react('bloch-vector-plot', [axisX, axisY, axisZ, vectorTrace, pathTrace], layout, { responsive: true, displayModeBar: false });
+    blochVectorInitialized = true;
+}
+
+function updateBlochVectorPlot(t) {
+    if (!blochVectorInitialized || typeof Plotly === 'undefined') return;
+    const plotDiv = document.getElementById('bloch-vector-plot');
+    if (!plotDiv) return;
+
+    const { R2, R1, delta, flipAngle } = getBlochVectorParams();
+    const { Mx, My, Mz } = computeBlochVector(t, R2, R1, delta, flipAngle);
+
+    appendBlochVectorPath(Mx, My, Mz);
+    restyleBlochVector(Mx, My, Mz);
+}
+
+function startBlochVectorAnimation() {
+    if (!blochVectorInitialized) initBlochVectorPlot();
+    if (blochVectorAnimationId) return;
+    blochVectorLastTs = null;
+    blochVectorAnimationId = requestAnimationFrame(stepBlochVectorAnimation);
+}
+
+function stopBlochVectorAnimation() {
+    if (blochVectorAnimationId) {
+        cancelAnimationFrame(blochVectorAnimationId);
+        blochVectorAnimationId = null;
+    }
+}
+
+function resetBlochVectorAnimation() {
+    blochVectorTime = 0;
+    blochVectorPathX = [];
+    blochVectorPathY = [];
+    blochVectorPathZ = [];
+    updateBlochVectorPlot(blochVectorTime);
+}
+
+function stepBlochVectorAnimation(timestamp) {
+    if (!blochVectorAnimationId) return;
+    const blochTab = document.getElementById('tab-bloch');
+    if (!blochTab || !blochTab.classList.contains('active')) {
+        stopBlochVectorAnimation();
+        return;
+    }
+    if (!blochVectorLastTs) {
+        blochVectorLastTs = timestamp;
+    }
+    const dt = (timestamp - blochVectorLastTs) / 1000;
+    blochVectorLastTs = timestamp;
+
+    const { R2, R1, delta, flipAngle, speed } = getBlochVectorParams();
+    const tMax = Math.log(20) / R1;
+    const effectiveDt = dt * speed;
+    let remaining = effectiveDt;
+    let last = null;
+    while (remaining > 0) {
+        const step = Math.min(blochVectorMaxStep, remaining);
+        remaining -= step;
+        blochVectorTime += step;
+        if (blochVectorTime > tMax) {
+            blochVectorTime = 0;
+            blochVectorPathX = [];
+            blochVectorPathY = [];
+            blochVectorPathZ = [];
+        }
+        last = computeBlochVector(blochVectorTime, R2, R1, delta, flipAngle);
+        appendBlochVectorPath(last.Mx, last.My, last.Mz);
+    }
+    if (last) restyleBlochVector(last.Mx, last.My, last.Mz);
+    blochVectorAnimationId = requestAnimationFrame(stepBlochVectorAnimation);
+}
+
 function updateBlochPlots() {
     if (typeof Plotly === 'undefined') return;
 
     try {
         const R2 = Math.pow(10, parseFloat(document.getElementById('bloch-R2').value));
+        const R1 = Math.pow(10, parseFloat(document.getElementById('bloch-R1').value));
         const delta = parseFloat(document.getElementById('bloch-delta').value);
         const flipAngle = parseFloat(document.getElementById('bloch-flip').value);
         const ftMin = parseFloat(document.getElementById('bloch-ftMin').value);
@@ -543,10 +738,13 @@ function updateBlochPlots() {
 
         // Update slider value displays
         document.getElementById('bloch-R2-value').textContent = R2.toFixed(1);
+        document.getElementById('bloch-R1-value').textContent = R1.toFixed(1);
         document.getElementById('bloch-delta-value').textContent = delta.toFixed(0);
         document.getElementById('bloch-flip-value').textContent = flipAngle.toFixed(0);
         document.getElementById('bloch-ftMin-value').textContent = ftMin.toFixed(1);
         document.getElementById('bloch-ftMax-value').textContent = ftMax.toFixed(1);
+        const speed = Math.pow(10, parseFloat(document.getElementById('bloch-speed').value));
+        document.getElementById('bloch-speed-value').textContent = speed.toFixed(4);
 
         // Derived quantities
         const T2_ms = 1000 / R2;
@@ -583,7 +781,7 @@ function updateBlochPlots() {
         };
 
         const spectrumLayout = {
-            title: `NMR Spectrum &mdash; Single Spin<br>FWHM = ${FWHM.toFixed(1)} Hz (R<sub>2</sub> = ${R2.toFixed(1)} s<sup>-1</sup>)`,
+            title: `NMR Spectrum — Single Spin<br>FWHM = ${FWHM.toFixed(1)} Hz (R<sub>2</sub> = ${R2.toFixed(1)} s<sup>-1</sup>)`,
             xaxis: { title: 'Frequency (Hz)', autorange: true },
             yaxis: { title: 'Intensity', range: [ftMin, ftMax] },
             height: 400,
@@ -614,9 +812,9 @@ function updateBlochPlots() {
         };
 
         const fidLayout = {
-            title: `Free Induction Decay &mdash; &alpha; = ${flipAngle}&deg;, &Delta;&Omega; = ${delta} Hz`,
+            title: `Free Induction Decay — α = ${flipAngle}&deg;, ΔΩ = ${delta} Hz`,
             xaxis: { title: 'Time (s)', autorange: true },
-            yaxis: { title: 'Magnetization', autorange: true },
+            yaxis: { title: 'M<sub>x</sub> + iM<sub>y</sub>', autorange: true },
             height: 400,
             margin: { l: 60, r: 20, t: 40, b: 50 },
             hovermode: 'closest',
@@ -624,6 +822,7 @@ function updateBlochPlots() {
         };
 
         Plotly.react('bloch-fid-plot', [fidRealTrace, fidImagTrace], fidLayout, { responsive: true, displayModeBar: true });
+        resetBlochVectorAnimation();
     } catch (error) {
         console.error('Error updating Bloch plots:', error);
     }
@@ -636,11 +835,14 @@ function initBloch() {
     }
     blochInitialized = true;
 
-    const ids = ['bloch-R2', 'bloch-delta', 'bloch-flip',
+    const ids = ['bloch-R2', 'bloch-R1', 'bloch-delta', 'bloch-flip',
+                 'bloch-speed',
                  'bloch-ftMin', 'bloch-ftMax'];
     ids.forEach(id => document.getElementById(id).addEventListener('input', updateBlochPlots));
 
     updateBlochPlots();
+    initBlochVectorPlot();
+    startBlochVectorAnimation();
 }
 
 // ============================================================
@@ -664,6 +866,8 @@ function initTabs() {
             if (btn.dataset.tab === 'bloch') {
                 Plotly.Plots.resize('bloch-spectrum-plot');
                 Plotly.Plots.resize('bloch-fid-plot');
+                Plotly.Plots.resize('bloch-vector-plot');
+                startBlochVectorAnimation();
             }
 
             if (btn.dataset.tab === 'simulation' && !simulationInitialized) {
@@ -672,6 +876,10 @@ function initTabs() {
             if (btn.dataset.tab === 'simulation') {
                 Plotly.Plots.resize('spectrum-plot');
                 Plotly.Plots.resize('fid-plot');
+            }
+
+            if (btn.dataset.tab !== 'bloch') {
+                stopBlochVectorAnimation();
             }
 
             if (btn.dataset.tab === 'animation' && !animationInitialized) {

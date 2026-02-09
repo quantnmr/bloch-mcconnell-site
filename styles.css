@@ -352,7 +352,7 @@ body {
 }
 
 #spectrum-plot, #fid-plot,
-#bloch-spectrum-plot, #bloch-fid-plot {
+#bloch-spectrum-plot, #bloch-fid-plot, #bloch-vector-plot {
     width: 100%;
     height: 400px;
     min-height: 400px;
