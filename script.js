@@ -420,11 +420,10 @@ function updatePlots() {
     }
 }
 
-// Set up event listeners when DOM is ready and Plotly is loaded
-function initialize() {
+// Set up event listeners for BM tab (lazy-initialised on first switch)
+function initSimulation() {
     if (typeof Plotly === 'undefined') {
-        console.log('Waiting for Plotly to load...');
-        setTimeout(initialize, 100);
+        setTimeout(initSimulation, 100);
         return;
     }
     
@@ -437,6 +436,8 @@ function initialize() {
         return;
     }
     
+    simulationInitialized = true;
+
     try {
         // Flag to prevent infinite loops when syncing sliders
         let syncingSliders = false;
@@ -507,8 +508,146 @@ function initialize() {
 }
 
 // ============================================================
+// Bloch Equations tab (introductory – no exchange)
+// ============================================================
+let blochInitialized = false;
+
+function simulateBlochFID(delta, R2, flipAngleDeg, t_max = 0.1, n_points = 256) {
+    const alpha = flipAngleDeg * Math.PI / 180;
+    const sinAlpha = Math.sin(alpha);
+    const omega = 2 * Math.PI * delta;
+    const timePoints = [];
+    const fid = [];
+    const dt = t_max / (n_points - 1);
+
+    for (let i = 0; i < n_points; i++) {
+        const t = i * dt;
+        timePoints.push(t);
+        const decay = sinAlpha * Math.exp(-R2 * t);
+        const re = Math.cos(omega * t) * decay;
+        const im = Math.sin(omega * t) * decay;
+        fid.push(new Complex(re, im));
+    }
+    return { timePoints, fid };
+}
+
+function updateBlochPlots() {
+    if (typeof Plotly === 'undefined') return;
+
+    try {
+        const R2 = Math.pow(10, parseFloat(document.getElementById('bloch-R2').value));
+        const delta = parseFloat(document.getElementById('bloch-delta').value);
+        const flipAngle = parseFloat(document.getElementById('bloch-flip').value);
+        const ftMin = parseFloat(document.getElementById('bloch-ftMin').value);
+        const ftMax = parseFloat(document.getElementById('bloch-ftMax').value);
+
+        // Update slider value displays
+        document.getElementById('bloch-R2-value').textContent = R2.toFixed(1);
+        document.getElementById('bloch-delta-value').textContent = delta.toFixed(0);
+        document.getElementById('bloch-flip-value').textContent = flipAngle.toFixed(0);
+        document.getElementById('bloch-ftMin-value').textContent = ftMin.toFixed(1);
+        document.getElementById('bloch-ftMax-value').textContent = ftMax.toFixed(1);
+
+        // Derived quantities
+        const T2_ms = 1000 / R2;
+        const FWHM = R2 / Math.PI;
+        document.getElementById('bloch-T2-value').textContent = T2_ms.toFixed(1);
+        document.getElementById('bloch-lw-value').textContent = FWHM.toFixed(1);
+
+        // Simulate single-spin FID
+        const { timePoints, fid } = simulateBlochFID(delta, R2, flipAngle);
+        const { freqAxis, spectrum } = computeSpectrum(fid, timePoints);
+
+        const spectrumReal = spectrum.map(c => c.real);
+        const fidReal = fid.map(c => c.real);
+        const fidImag = fid.map(c => c.imag);
+
+        // ---- Spectrum plot ----
+        const spectrumTrace = {
+            x: freqAxis,
+            y: spectrumReal,
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: '#667eea', width: 2 },
+            name: 'Spectrum'
+        };
+
+        const ruleLine = {
+            x: [delta, delta],
+            y: [ftMin, ftMax],
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: 'red', dash: 'dash', width: 2 },
+            name: `ΔΩ = ${delta} Hz`,
+            showlegend: true
+        };
+
+        const spectrumLayout = {
+            title: `NMR Spectrum &mdash; Single Spin<br>FWHM = ${FWHM.toFixed(1)} Hz (R<sub>2</sub> = ${R2.toFixed(1)} s<sup>-1</sup>)`,
+            xaxis: { title: 'Frequency (Hz)', autorange: true },
+            yaxis: { title: 'Intensity', range: [ftMin, ftMax] },
+            height: 400,
+            margin: { l: 60, r: 20, t: 60, b: 50 },
+            hovermode: 'closest',
+            showlegend: true
+        };
+
+        Plotly.react('bloch-spectrum-plot', [spectrumTrace, ruleLine], spectrumLayout, { responsive: true, displayModeBar: true });
+
+        // ---- FID plot ----
+        const fidRealTrace = {
+            x: timePoints,
+            y: fidReal,
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: '#667eea', width: 2 },
+            name: 'Real (M<sub>x</sub>)'
+        };
+
+        const fidImagTrace = {
+            x: timePoints,
+            y: fidImag,
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: '#764ba2', width: 2 },
+            name: 'Imaginary (M<sub>y</sub>)'
+        };
+
+        const fidLayout = {
+            title: `Free Induction Decay &mdash; &alpha; = ${flipAngle}&deg;, &Delta;&Omega; = ${delta} Hz`,
+            xaxis: { title: 'Time (s)', autorange: true },
+            yaxis: { title: 'Magnetization', autorange: true },
+            height: 400,
+            margin: { l: 60, r: 20, t: 40, b: 50 },
+            hovermode: 'closest',
+            showlegend: true
+        };
+
+        Plotly.react('bloch-fid-plot', [fidRealTrace, fidImagTrace], fidLayout, { responsive: true, displayModeBar: true });
+    } catch (error) {
+        console.error('Error updating Bloch plots:', error);
+    }
+}
+
+function initBloch() {
+    if (typeof Plotly === 'undefined') {
+        setTimeout(initBloch, 100);
+        return;
+    }
+    blochInitialized = true;
+
+    const ids = ['bloch-R2', 'bloch-delta', 'bloch-flip',
+                 'bloch-ftMin', 'bloch-ftMax'];
+    ids.forEach(id => document.getElementById(id).addEventListener('input', updateBlochPlots));
+
+    updateBlochPlots();
+}
+
+// ============================================================
 // Tab switching
 // ============================================================
+let simulationInitialized = false;
+
 function initTabs() {
     const buttons = document.querySelectorAll('.tab-button');
     buttons.forEach(btn => {
@@ -521,7 +660,20 @@ function initTabs() {
             const tabId = 'tab-' + btn.dataset.tab;
             document.getElementById(tabId).classList.add('active');
 
-            // If switching to animation tab, initialise/resize the plot
+            // Lazy-init / resize each tab's plots
+            if (btn.dataset.tab === 'bloch') {
+                Plotly.Plots.resize('bloch-spectrum-plot');
+                Plotly.Plots.resize('bloch-fid-plot');
+            }
+
+            if (btn.dataset.tab === 'simulation' && !simulationInitialized) {
+                initSimulation();
+            }
+            if (btn.dataset.tab === 'simulation') {
+                Plotly.Plots.resize('spectrum-plot');
+                Plotly.Plots.resize('fid-plot');
+            }
+
             if (btn.dataset.tab === 'animation' && !animationInitialized) {
                 initAnimation();
             }
@@ -529,7 +681,6 @@ function initTabs() {
                 Plotly.Plots.resize('animation-plot');
             }
 
-            // If switching to dispersion tab, initialise/resize the plots
             if (btn.dataset.tab === 'dispersion' && !dispersionInitialized) {
                 initDispersion();
             }
@@ -1477,9 +1628,9 @@ function initDispersion() {
 
 // Wait for both DOM and Plotly to be ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => { initTabs(); initialize(); });
+    document.addEventListener('DOMContentLoaded', () => { initTabs(); initBloch(); });
 } else {
     initTabs();
-    initialize();
+    initBloch();
 }
 
