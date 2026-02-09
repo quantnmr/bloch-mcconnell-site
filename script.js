@@ -521,6 +521,9 @@ let blochVectorPathX = [];
 let blochVectorPathY = [];
 let blochVectorPathZ = [];
 const blochVectorMaxStep = 0.002;
+let blochPrePulseMz = 1;
+let blochMz0 = 0;
+let blochMxyScale = 1;
 
 function simulateBlochFID(delta, R2, flipAngleDeg, t_max = 1.0, n_points = 256) {
     const alpha = flipAngleDeg * Math.PI / 180;
@@ -547,19 +550,33 @@ function getBlochVectorParams() {
     const delta = parseFloat(document.getElementById('bloch-delta').value);
     const flipAngle = parseFloat(document.getElementById('bloch-flip').value);
     const speed = Math.pow(10, parseFloat(document.getElementById('bloch-speed').value));
-    return { R2, R1, delta, flipAngle, speed };
+    const d1Slider = document.getElementById('bloch-d1');
+    const d1EnabledEl = document.getElementById('bloch-d1-enabled');
+    const d1 = d1Slider ? parseFloat(d1Slider.value) : 1.0;
+    const d1Enabled = d1EnabledEl ? d1EnabledEl.checked : false;
+    return { R2, R1, delta, flipAngle, speed, d1, d1Enabled };
 }
 
-function computeBlochVector(t, R2, R1, delta, flipAngleDeg) {
-    const alpha = flipAngleDeg * Math.PI / 180;
+function computeBlochVector(t, R2, R1, delta) {
     const omega = 2 * Math.PI * delta;
     const decay = Math.exp(-R2 * t);
-    const Mx = Math.sin(alpha) * decay * Math.cos(omega * t);
-    const My = Math.sin(alpha) * decay * Math.sin(omega * t);
+    const Mx = blochMxyScale * decay * Math.cos(omega * t);
+    const My = blochMxyScale * decay * Math.sin(omega * t);
     const M0 = 1;
-    const Mz0 = Math.cos(alpha);
-    const Mz = M0 - (M0 - Mz0) * Math.exp(-R1 * t);
+    const Mz = M0 - (M0 - blochMz0) * Math.exp(-R1 * t);
     return { Mx, My, Mz };
+}
+
+function computeMzAtTime(t, R1) {
+    const M0 = 1;
+    return M0 - (M0 - blochMz0) * Math.exp(-R1 * t);
+}
+
+function resetBlochPulseState() {
+    const flipAngle = parseFloat(document.getElementById('bloch-flip').value);
+    const alpha = flipAngle * Math.PI / 180;
+    blochMz0 = blochPrePulseMz * Math.cos(alpha);
+    blochMxyScale = blochPrePulseMz * Math.sin(alpha);
 }
 
 function appendBlochVectorPath(Mx, My, Mz) {
@@ -586,8 +603,9 @@ function initBlochVectorPlot() {
     const plotDiv = document.getElementById('bloch-vector-plot');
     if (!plotDiv) return;
 
-    const { R2, R1, delta, flipAngle } = getBlochVectorParams();
-    const { Mx, My, Mz } = computeBlochVector(0, R2, R1, delta, flipAngle);
+    const { R2, R1, delta } = getBlochVectorParams();
+    resetBlochPulseState();
+    const { Mx, My, Mz } = computeBlochVector(0, R2, R1, delta);
 
     const axisX = {
         x: [0, 1],
@@ -661,8 +679,8 @@ function updateBlochVectorPlot(t) {
     const plotDiv = document.getElementById('bloch-vector-plot');
     if (!plotDiv) return;
 
-    const { R2, R1, delta, flipAngle } = getBlochVectorParams();
-    const { Mx, My, Mz } = computeBlochVector(t, R2, R1, delta, flipAngle);
+    const { R2, R1, delta } = getBlochVectorParams();
+    const { Mx, My, Mz } = computeBlochVector(t, R2, R1, delta);
 
     appendBlochVectorPath(Mx, My, Mz);
     restyleBlochVector(Mx, My, Mz);
@@ -687,6 +705,8 @@ function resetBlochVectorAnimation() {
     blochVectorPathX = [];
     blochVectorPathY = [];
     blochVectorPathZ = [];
+    blochPrePulseMz = 1;
+    resetBlochPulseState();
     updateBlochVectorPlot(blochVectorTime);
 }
 
@@ -703,22 +723,33 @@ function stepBlochVectorAnimation(timestamp) {
     const dt = (timestamp - blochVectorLastTs) / 1000;
     blochVectorLastTs = timestamp;
 
-    const { R2, R1, delta, flipAngle, speed } = getBlochVectorParams();
-    const tMax = Math.log(20) / R1;
+    const { R2, R1, delta, speed, d1, d1Enabled } = getBlochVectorParams();
+    const tMax = d1Enabled ? d1 : (Math.log(20) / R1);
     const effectiveDt = dt * speed;
     let remaining = effectiveDt;
     let last = null;
     while (remaining > 0) {
         const step = Math.min(blochVectorMaxStep, remaining);
-        remaining -= step;
-        blochVectorTime += step;
-        if (blochVectorTime > tMax) {
+        const nextTime = blochVectorTime + step;
+        if (nextTime >= tMax) {
+            if (d1Enabled) {
+                blochPrePulseMz = computeMzAtTime(tMax, R1);
+            } else {
+                blochPrePulseMz = 1;
+            }
+            resetBlochPulseState();
             blochVectorTime = 0;
             blochVectorPathX = [];
             blochVectorPathY = [];
             blochVectorPathZ = [];
+            remaining -= step;
+            const overflow = nextTime - tMax;
+            remaining += overflow;
+            continue;
         }
-        last = computeBlochVector(blochVectorTime, R2, R1, delta, flipAngle);
+        remaining -= step;
+        blochVectorTime = nextTime;
+        last = computeBlochVector(blochVectorTime, R2, R1, delta);
         appendBlochVectorPath(last.Mx, last.My, last.Mz);
     }
     if (last) restyleBlochVector(last.Mx, last.My, last.Mz);
@@ -729,12 +760,16 @@ function updateBlochPlots() {
     if (typeof Plotly === 'undefined') return;
 
     try {
+        const d1EnabledEl = document.getElementById('bloch-d1-enabled');
+        const d1Slider = document.getElementById('bloch-d1');
+        const d1Enabled = d1EnabledEl ? d1EnabledEl.checked : false;
         const R2 = Math.pow(10, parseFloat(document.getElementById('bloch-R2').value));
         const R1 = Math.pow(10, parseFloat(document.getElementById('bloch-R1').value));
         const delta = parseFloat(document.getElementById('bloch-delta').value);
         const flipAngle = parseFloat(document.getElementById('bloch-flip').value);
         const ftMin = parseFloat(document.getElementById('bloch-ftMin').value);
         const ftMax = parseFloat(document.getElementById('bloch-ftMax').value);
+        const d1 = d1Slider ? parseFloat(d1Slider.value) : 1.0;
 
         // Update slider value displays
         document.getElementById('bloch-R2-value').textContent = R2.toFixed(1);
@@ -745,12 +780,16 @@ function updateBlochPlots() {
         document.getElementById('bloch-ftMax-value').textContent = ftMax.toFixed(1);
         const speed = Math.pow(10, parseFloat(document.getElementById('bloch-speed').value));
         document.getElementById('bloch-speed-value').textContent = speed.toFixed(4);
+        if (document.getElementById('bloch-d1-value')) {
+            document.getElementById('bloch-d1-value').textContent = d1.toFixed(2);
+        }
+        if (d1Slider) {
+            d1Slider.disabled = !d1Enabled;
+            d1Slider.classList.toggle('disabled', !d1Enabled);
+        }
 
         // Derived quantities
-        const T2_ms = 1000 / R2;
         const FWHM = R2 / Math.PI;
-        document.getElementById('bloch-T2-value').textContent = T2_ms.toFixed(1);
-        document.getElementById('bloch-lw-value').textContent = FWHM.toFixed(1);
 
         // Simulate single-spin FID
         const { timePoints, fid } = simulateBlochFID(delta, R2, flipAngle);
@@ -836,7 +875,7 @@ function initBloch() {
     blochInitialized = true;
 
     const ids = ['bloch-R2', 'bloch-R1', 'bloch-delta', 'bloch-flip',
-                 'bloch-speed',
+                 'bloch-speed', 'bloch-d1', 'bloch-d1-enabled',
                  'bloch-ftMin', 'bloch-ftMax'];
     ids.forEach(id => document.getElementById(id).addEventListener('input', updateBlochPlots));
 
