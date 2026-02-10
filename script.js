@@ -5,6 +5,7 @@ class Complex {
         this.imag = imag;
     }
     
+    
     add(other) {
         return new Complex(this.real + other.real, this.imag + other.imag);
     }
