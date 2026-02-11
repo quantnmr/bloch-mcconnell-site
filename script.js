@@ -5,7 +5,7 @@ class Complex {
         this.imag = imag;
     }
     
-    
+
     add(other) {
         return new Complex(this.real + other.real, this.imag + other.imag);
     }
@@ -665,6 +665,7 @@ function initBlochVectorPlot() {
         showlegend: false,
         scene: {
             aspectmode: 'cube',
+            dragmode: 'orbit',
             xaxis: { range: [-1.1, 1.1], title: 'Mx', zeroline: true },
             yaxis: { range: [-1.1, 1.1], title: 'My', zeroline: true },
             zaxis: { range: [-1.1, 1.1], title: 'Mz', zeroline: true }
@@ -672,6 +673,14 @@ function initBlochVectorPlot() {
     };
 
     Plotly.react('bloch-vector-plot', [axisX, axisY, axisZ, vectorTrace, pathTrace], layout, { responsive: true, displayModeBar: false });
+    if (!plotDiv.dataset.interactionBound) {
+        plotDiv.addEventListener('mousedown', stopBlochVectorAnimation);
+        plotDiv.addEventListener('touchstart', stopBlochVectorAnimation, { passive: true });
+        plotDiv.addEventListener('mouseup', startBlochVectorAnimation);
+        plotDiv.addEventListener('mouseleave', startBlochVectorAnimation);
+        plotDiv.addEventListener('touchend', startBlochVectorAnimation);
+        plotDiv.dataset.interactionBound = 'true';
+    }
     blochVectorInitialized = true;
 }
 
@@ -1569,7 +1578,8 @@ function animateLoop() {
 let dispersionInitialized = false;
 
 // Standard experimental νCPMG values (Hz)
-const DISP_NU_CPMG_EXP = [25, 50, 75, 100, 125, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000];
+const DISP_NU_CPMG = [25, 50, 75, 100, 125, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 3000, 4000, 5000, 6000];
+const DISP_NU_ECPMG = [25, 50, 75, 100, 125, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 3000, 4000, 6000, 8000, 10000, 15000, 20000, 25000, 30000];
 
 // Pre-generated Gaussian noise arrays (one per field)
 let dispNoise1 = [];
@@ -1586,8 +1596,10 @@ function generateGaussianNoise(n) {
 }
 
 function generateDispNoise() {
-    dispNoise1 = generateGaussianNoise(DISP_NU_CPMG_EXP.length);
-    dispNoise2 = generateGaussianNoise(DISP_NU_CPMG_EXP.length);
+    // Generate enough noise for the larger array
+    const maxLen = Math.max(DISP_NU_CPMG.length, DISP_NU_ECPMG.length);
+    dispNoise1 = generateGaussianNoise(maxLen);
+    dispNoise2 = generateGaussianNoise(maxLen);
 }
 
 // Fast-exchange limit / Luz-Meiboom equation (Eq. 2 in Farber & Mittermaier 2015)
@@ -1658,18 +1670,43 @@ function updateDispersionPlots() {
     const pB_pct = parseFloat(document.getElementById('disp-pB').value);
     const pB = pB_pct / 100;
     const pA = 1 - pB;
-    const dwHz = parseFloat(document.getElementById('disp-dw').value);
-    const dw = 2 * Math.PI * dwHz;   // convert Hz to rad/s
+    const dwPpm = parseFloat(document.getElementById('disp-dw').value);
+
+    // Larmor frequencies in MHz at 14.1 T and 18.8 T for each nucleus
+    const nucleusFreqs = {
+        '15N': { f600: 60.8,  f800: 81.1  },
+        '13C': { f600: 150.9, f800: 201.2 },
+        '1H':  { f600: 600.0, f800: 800.0 }
+    };
+    const nucleus = document.getElementById('disp-nucleus').value;
+    const { f600, f800 } = nucleusFreqs[nucleus];
+
+    const dwHz = dwPpm * f600;       // Δν in Hz at 14.1 T
+    const dwHz800 = dwPpm * f800;    // Δν in Hz at 18.8 T
+    const dw = 2 * Math.PI * dwHz;   // Δω in rad/s at 14.1 T
     const R20 = Math.pow(10, parseFloat(document.getElementById('disp-R20').value));
+    const R20_800 = Math.pow(10, parseFloat(document.getElementById('disp-R20-800').value));
     const noiseSigma = parseFloat(document.getElementById('disp-noise').value);
     const showDualField = document.getElementById('disp-dual-field').checked;
     const showFast = document.getElementById('disp-show-fast').checked;
+    const showEcpmg = document.getElementById('disp-ecpmg').checked;
+
+    // Show/hide R20 (18.8 T) slider
+    const r20800Group = document.getElementById('disp-R20-800-group');
+    if (r20800Group) r20800Group.style.display = showDualField ? '' : 'none';
+
+    // Select frequency range based on CPMG / eCPMG mode
+    const DISP_NU_CPMG_EXP = showEcpmg ? DISP_NU_ECPMG : DISP_NU_CPMG;
+    const nuMax = showEcpmg ? 30000 : 6000;
 
     // Update displayed values
     document.getElementById('disp-kex-value').textContent = kex.toFixed(0);
     document.getElementById('disp-pB-value').textContent = pB_pct.toFixed(1);
-    document.getElementById('disp-dw-value').textContent = dwHz.toFixed(0);
+    document.getElementById('disp-dw-value').textContent = dwPpm.toFixed(2);
+    document.getElementById('disp-dw-hz600').textContent = dwHz.toFixed(0);
+    document.getElementById('disp-dw-hz800').textContent = dwHz800.toFixed(0);
     document.getElementById('disp-R20-value').textContent = R20.toFixed(1);
+    document.getElementById('disp-R20-800-value').textContent = R20_800.toFixed(1);
     document.getElementById('disp-noise-value').textContent = noiseSigma.toFixed(1);
 
     // Exchange regime indicator (kex / |Δω|)
@@ -1686,10 +1723,10 @@ function updateDispersionPlots() {
     document.getElementById('disp-Rex-value').textContent = Rex.toFixed(1);
 
     // ---- Dispersion curve ----
-    // Smooth theoretical curves (200 points from 25 to 1000 Hz)
+    // Smooth theoretical curves (200 points from 25 to nuMax Hz)
     const nuSmooth = [];
     for (let i = 0; i < 200; i++) {
-        nuSmooth.push(25 + (1000 - 25) * i / 199);
+        nuSmooth.push(25 + (nuMax - 25) * i / 199);
     }
     const R2CR = nuSmooth.map(nu => carverRichards(nu, kex, pB, dw, R20, R20));
     const R2Fast = nuSmooth.map(nu => fastLimitR2(nu, kex, pB, dw, R20, R20));
@@ -1731,15 +1768,14 @@ function updateDispersionPlots() {
         });
     }
 
-    // Second magnetic field: 18.8 T (800 MHz ¹H)
-    // Δω scales with field: Δω₈₀₀ = Δω₆₀₀ × (800/600)
+    // Second magnetic field: 18.8 T (800 MHz ¹H / ~81.1 MHz ¹⁵N)
+    // Δω derived from ppm × ¹⁵N Larmor frequency at 18.8 T
     if (showDualField) {
-        const fieldRatio = 800 / 600;
-        const dw800 = dw * fieldRatio;
+        const dw800 = 2 * Math.PI * dwHz800;
 
-        const R2CR800 = nuSmooth.map(nu => carverRichards(nu, kex, pB, dw800, R20, R20));
+        const R2CR800 = nuSmooth.map(nu => carverRichards(nu, kex, pB, dw800, R20_800, R20_800));
         const dataR2_800 = DISP_NU_CPMG_EXP.map((nu, i) =>
-            carverRichards(nu, kex, pB, dw800, R20, R20) + noiseSigma * (dispNoise2[i] || 0)
+            carverRichards(nu, kex, pB, dw800, R20_800, R20_800) + noiseSigma * (dispNoise2[i] || 0)
         );
 
         traces.push({
@@ -1759,18 +1795,30 @@ function updateDispersionPlots() {
         });
     }
 
-    // R₂⁰ baseline (dotted)
+    // R₂⁰ baseline (dotted) — 14.1 T
     traces.push({
-        x: [0, 1050], y: [R20, R20],
+        x: [0, nuMax + 50], y: [R20, R20],
         mode: 'lines',
-        line: { color: '#aaa', width: 1, dash: 'dot' },
-        name: 'R₂⁰',
+        line: { color: '#667eea', width: 1, dash: 'dot' },
+        name: 'R₂⁰ (14.1 T)',
         showlegend: true,
         type: 'scatter'
     });
 
+    // R₂⁰ baseline (dotted) — 18.8 T
+    if (showDualField) {
+        traces.push({
+            x: [0, nuMax + 50], y: [R20_800, R20_800],
+            mode: 'lines',
+            line: { color: '#e84393', width: 1, dash: 'dot' },
+            name: 'R₂⁰ (18.8 T)',
+            showlegend: true,
+            type: 'scatter'
+        });
+    }
+
     const dispLayout = {
-        xaxis: { title: 'ν<sub>CPMG</sub> (Hz)', range: [0, 1050], zeroline: false },
+        xaxis: { title: 'ν<sub>CPMG</sub> (Hz)', range: [0, nuMax + 50], zeroline: false },
         yaxis: { title: 'R<sub>2,eff</sub> (s⁻¹)', zeroline: false },
         height: 400,
         margin: { l: 65, r: 20, t: 20, b: 55 },
@@ -1838,12 +1886,12 @@ function initDispersion() {
     generateDispNoise();
 
     // Slider input listeners
-    ['disp-kex', 'disp-pB', 'disp-dw', 'disp-R20', 'disp-noise'].forEach(id => {
+    ['disp-kex', 'disp-pB', 'disp-dw', 'disp-R20', 'disp-R20-800', 'disp-noise'].forEach(id => {
         document.getElementById(id).addEventListener('input', updateDispersionPlots);
     });
 
     // Checkbox listeners
-    ['disp-dual-field', 'disp-show-fast'].forEach(id => {
+    ['disp-dual-field', 'disp-show-fast', 'disp-ecpmg', 'disp-nucleus'].forEach(id => {
         document.getElementById(id).addEventListener('change', updateDispersionPlots);
     });
 
@@ -1854,11 +1902,12 @@ function initDispersion() {
     });
 
     // Preset buttons
+    // dw values in ppm (previously Hz at 14.1T, now converted: Hz / 60.8 MHz)
     const presets = {
-        'preset-fast':        { kex: 5000,  pB: 5,   dw: 100, R20: 10 },
-        'preset-intermediate':{ kex: 1500,  pB: 5,   dw: 200, R20: 10 },
-        'preset-slow':        { kex: 200,   pB: 5,   dw: 500, R20: 10 },
-        'preset-no-exchange': { kex: 1000,  pB: 0.5, dw: 10,  R20: 10 }
+        'preset-fast':        { kex: 5000,  pB: 5,   dw: 1.64, R20: 10 },
+        'preset-intermediate':{ kex: 1500,  pB: 5,   dw: 3.29, R20: 10 },
+        'preset-slow':        { kex: 200,   pB: 5,   dw: 8.22, R20: 10 },
+        'preset-no-exchange': { kex: 1000,  pB: 0.5, dw: 0.16, R20: 10 }
     };
 
     Object.entries(presets).forEach(([btnId, p]) => {
