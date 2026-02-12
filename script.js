@@ -350,7 +350,7 @@ function updatePlots() {
             y: spectrumReal,
             type: 'scatter',
             mode: 'lines',
-            line: { color: '#667eea', width: 2 },
+            line: { color: '#7B2D3B', width: 2 },
             name: 'Spectrum'
         };
         
@@ -359,7 +359,7 @@ function updatePlots() {
             y: [ftMin, ftMax],
             type: 'scatter',
             mode: 'lines',
-            line: { color: 'red', dash: 'dash', width: 2 },
+            line: { color: '#A3445A', dash: 'dash', width: 2 },
             name: `ΔΩ<sub>A</sub> (p<sub>A</sub>=${p_A.toFixed(2)})`,
             showlegend: true
         };
@@ -369,7 +369,7 @@ function updatePlots() {
             y: [ftMin, ftMax],
             type: 'scatter',
             mode: 'lines',
-            line: { color: 'blue', dash: 'dash', width: 2 },
+            line: { color: '#D4764E', dash: 'dash', width: 2 },
             name: `ΔΩ<sub>B</sub> (p<sub>B</sub>=${p_B.toFixed(2)})`,
             showlegend: true
         };
@@ -392,7 +392,7 @@ function updatePlots() {
             y: fidReal,
             type: 'scatter',
             mode: 'lines',
-            line: { color: '#667eea', width: 2 },
+            line: { color: '#7B2D3B', width: 2 },
             name: 'Real'
         };
         
@@ -401,7 +401,7 @@ function updatePlots() {
             y: fidImag,
             type: 'scatter',
             mode: 'lines',
-            line: { color: '#764ba2', width: 2 },
+            line: { color: '#E0829B', width: 2 },
             name: 'Imaginary'
         };
         
@@ -644,8 +644,8 @@ function initBlochVectorPlot() {
         z: [0, Mz],
         type: 'scatter3d',
         mode: 'lines+markers',
-        line: { color: '#667eea', width: 6 },
-        marker: { size: 4, color: '#667eea' },
+        line: { color: '#7B2D3B', width: 6 },
+        marker: { size: 4, color: '#7B2D3B' },
         name: 'M'
     };
     const pathTrace = {
@@ -821,7 +821,7 @@ function updateBlochPlots() {
             y: spectrumReal,
             type: 'scatter',
             mode: 'lines',
-            line: { color: '#667eea', width: 2 },
+            line: { color: '#7B2D3B', width: 2 },
             name: 'Spectrum'
         };
 
@@ -830,7 +830,7 @@ function updateBlochPlots() {
             y: [ftMin, ftMax],
             type: 'scatter',
             mode: 'lines',
-            line: { color: 'red', dash: 'dash', width: 2 },
+            line: { color: '#A3445A', dash: 'dash', width: 2 },
             name: `ΔΩ = ${delta} Hz`,
             showlegend: true
         };
@@ -853,7 +853,7 @@ function updateBlochPlots() {
             y: fidReal,
             type: 'scatter',
             mode: 'lines',
-            line: { color: '#667eea', width: 2 },
+            line: { color: '#7B2D3B', width: 2 },
             name: 'Real (M<sub>x</sub>)'
         };
 
@@ -862,7 +862,7 @@ function updateBlochPlots() {
             y: fidImag,
             type: 'scatter',
             mode: 'lines',
-            line: { color: '#764ba2', width: 2 },
+            line: { color: '#E0829B', width: 2 },
             name: 'Imaginary (M<sub>y</sub>)'
         };
 
@@ -983,8 +983,8 @@ let mxTimes = [];
 let mxValues = [];
 
 // Color for rate A spins and rate B spins
-const COLOR_A = '#667eea';
-const COLOR_B = '#e84393';
+const COLOR_A = '#7B2D3B';
+const COLOR_B = '#D4764E';
 
 // Per-spin state
 let spinAssignment = []; // 0 = rate A, 1 = rate B
@@ -1742,7 +1742,7 @@ function updateDispersionPlots() {
     traces.push({
         x: nuSmooth, y: R2CR,
         mode: 'lines',
-        line: { color: '#667eea', width: 3 },
+        line: { color: '#7B2D3B', width: 3 },
         name: 'Carver-Richards (14.1 T)',
         type: 'scatter'
     });
@@ -1751,8 +1751,8 @@ function updateDispersionPlots() {
     traces.push({
         x: DISP_NU_CPMG_EXP, y: dataR2_600,
         mode: 'markers',
-        marker: { color: '#667eea', size: 8, symbol: 'circle', line: { color: '#4a5bc7', width: 1 } },
-        error_y: { type: 'constant', value: noiseSigma, visible: noiseSigma > 0, color: '#667eea', thickness: 1.5 },
+        marker: { color: '#7B2D3B', size: 8, symbol: 'circle', line: { color: '#5C1A2A', width: 1 } },
+        error_y: { type: 'constant', value: noiseSigma, visible: noiseSigma > 0, color: '#7B2D3B', thickness: 1.5 },
         name: 'Data (14.1 T)',
         type: 'scatter'
     });
@@ -1762,7 +1762,7 @@ function updateDispersionPlots() {
         traces.push({
             x: nuSmooth, y: R2Fast,
             mode: 'lines',
-            line: { color: '#e17055', width: 2, dash: 'dash' },
+            line: { color: '#C4956A', width: 2, dash: 'dash' },
             name: 'Luz-Meiboom (LM) approx.',
             type: 'scatter'
         });
@@ -1781,15 +1781,15 @@ function updateDispersionPlots() {
         traces.push({
             x: nuSmooth, y: R2CR800,
             mode: 'lines',
-            line: { color: '#e84393', width: 3 },
+            line: { color: '#D4764E', width: 3 },
             name: 'Carver-Richards (18.8 T)',
             type: 'scatter'
         });
         traces.push({
             x: DISP_NU_CPMG_EXP, y: dataR2_800,
             mode: 'markers',
-            marker: { color: '#e84393', size: 8, symbol: 'diamond', line: { color: '#c5307e', width: 1 } },
-            error_y: { type: 'constant', value: noiseSigma, visible: noiseSigma > 0, color: '#e84393', thickness: 1.5 },
+            marker: { color: '#D4764E', size: 8, symbol: 'diamond', line: { color: '#B5613A', width: 1 } },
+            error_y: { type: 'constant', value: noiseSigma, visible: noiseSigma > 0, color: '#D4764E', thickness: 1.5 },
             name: 'Data (18.8 T)',
             type: 'scatter'
         });
@@ -1799,7 +1799,7 @@ function updateDispersionPlots() {
     traces.push({
         x: [0, nuMax + 50], y: [R20, R20],
         mode: 'lines',
-        line: { color: '#667eea', width: 1, dash: 'dot' },
+        line: { color: '#7B2D3B', width: 1, dash: 'dot' },
         name: 'R₂⁰ (14.1 T)',
         showlegend: true,
         type: 'scatter'
@@ -1810,7 +1810,7 @@ function updateDispersionPlots() {
         traces.push({
             x: [0, nuMax + 50], y: [R20_800, R20_800],
             mode: 'lines',
-            line: { color: '#e84393', width: 1, dash: 'dot' },
+            line: { color: '#D4764E', width: 1, dash: 'dot' },
             name: 'R₂⁰ (18.8 T)',
             showlegend: true,
             type: 'scatter'
@@ -1848,21 +1848,21 @@ function updateDispersionPlots() {
         {
             x: freqAxis, y: specReal,
             mode: 'lines',
-            line: { color: '#667eea', width: 2 },
+            line: { color: '#7B2D3B', width: 2 },
             name: 'Spectrum',
             type: 'scatter'
         },
         {
             x: [deltaA, deltaA], y: [-yMax * 0.05, yMax],
             mode: 'lines',
-            line: { color: 'red', dash: 'dash', width: 1.5 },
+            line: { color: '#A3445A', dash: 'dash', width: 1.5 },
             name: 'ω<sub>A</sub> (p<sub>A</sub>=' + pA.toFixed(2) + ')',
             type: 'scatter'
         },
         {
             x: [deltaB, deltaB], y: [-yMax * 0.05, yMax],
             mode: 'lines',
-            line: { color: 'blue', dash: 'dash', width: 1.5 },
+            line: { color: '#D4764E', dash: 'dash', width: 1.5 },
             name: 'ω<sub>B</sub> (p<sub>B</sub>=' + pB.toFixed(2) + ')',
             type: 'scatter'
         }

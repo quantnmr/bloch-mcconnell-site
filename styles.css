@@ -6,7 +6,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #7B2D3B 0%, #5C1A2A 100%);
     min-height: 100vh;
     padding: 20px;
     color: #333;
@@ -22,7 +22,7 @@ body {
 }
 
 .header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #7B2D3B 0%, #5C1A2A 100%);
     color: white;
     padding: 30px;
     text-align: center;
@@ -60,13 +60,13 @@ body {
 }
 
 .tab-button:hover {
-    color: #667eea;
-    background: #f8f9fa;
+    color: #7B2D3B;
+    background: #f8f5f6;
 }
 
 .tab-button.active {
-    color: #667eea;
-    border-bottom-color: #667eea;
+    color: #7B2D3B;
+    border-bottom-color: #7B2D3B;
     background: white;
 }
 
@@ -109,17 +109,17 @@ body {
 }
 
 .animation-controls {
-    background: #f8f9fa;
+    background: #f8f5f6;
     padding: 20px;
     border-right: 1px solid #e0e0e0;
     font-size: 0.9em;
 }
 
 .animation-controls h2 {
-    color: #667eea;
+    color: #7B2D3B;
     margin-bottom: 15px;
     font-size: 1.3em;
-    border-bottom: 2px solid #667eea;
+    border-bottom: 2px solid #7B2D3B;
     padding-bottom: 6px;
 }
 
@@ -129,7 +129,7 @@ body {
     margin-top: 10px;
     border: none;
     border-radius: 8px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #7B2D3B 0%, #5C1A2A 100%);
     color: white;
     font-size: 1em;
     font-weight: 600;
@@ -147,7 +147,7 @@ body {
     gap: 0;
     border-radius: 8px;
     overflow: hidden;
-    border: 2px solid #667eea;
+    border: 2px solid #7B2D3B;
 }
 
 .view-btn {
@@ -155,7 +155,7 @@ body {
     padding: 8px 12px;
     border: none;
     background: white;
-    color: #667eea;
+    color: #7B2D3B;
     font-weight: 600;
     font-size: 0.9em;
     cursor: pointer;
@@ -164,12 +164,12 @@ body {
 }
 
 .view-btn.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #7B2D3B 0%, #5C1A2A 100%);
     color: white;
 }
 
 .view-btn:hover:not(.active) {
-    background: #f0f4ff;
+    background: #f5eef0;
 }
 
 .animation-right {
@@ -216,7 +216,7 @@ body {
 }
 
 .controls-panel {
-    background: #f8f9fa;
+    background: #f8f5f6;
     padding: 15px 20px;
     border-right: 1px solid #e0e0e0;
     overflow-y: auto;
@@ -224,10 +224,10 @@ body {
 }
 
 .controls-panel h2 {
-    color: #667eea;
+    color: #7B2D3B;
     margin-bottom: 10px;
     font-size: 1.3em;
-    border-bottom: 2px solid #667eea;
+    border-bottom: 2px solid #7B2D3B;
     padding-bottom: 6px;
 }
 
@@ -247,11 +247,11 @@ body {
 .control-label .math {
     font-family: 'Times New Roman', serif;
     font-style: italic;
-    color: #667eea;
+    color: #7B2D3B;
 }
 
 .control-label .value {
-    color: #764ba2;
+    color: #9B3A4A;
     font-weight: 700;
     font-size: 0.95em;
 }
@@ -272,7 +272,7 @@ body {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #7B2D3B 0%, #5C1A2A 100%);
     cursor: pointer;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
@@ -291,7 +291,7 @@ body {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #7B2D3B 0%, #5C1A2A 100%);
     cursor: pointer;
     border: none;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
@@ -308,8 +308,8 @@ body {
 }
 
 .checkbox-group:hover {
-    border-color: #667eea;
-    background: #f0f4ff;
+    border-color: #7B2D3B;
+    background: #f5eef0;
 }
 
 .checkbox-group input[type="checkbox"] {
@@ -360,21 +360,21 @@ body {
 
 .chart-title {
     font-size: 1.3em;
-    color: #667eea;
+    color: #7B2D3B;
     margin-bottom: 15px;
     font-weight: 600;
 }
 
 .info-box {
-    background: #e8edff;
-    border-left: 4px solid #667eea;
+    background: #f3e5e8;
+    border-left: 4px solid #7B2D3B;
     padding: 10px;
     margin-bottom: 10px;
     border-radius: 5px;
 }
 
 .info-box h3 {
-    color: #667eea;
+    color: #7B2D3B;
     margin-bottom: 10px;
 }
 
@@ -385,8 +385,8 @@ body {
 
 /* Bloch equations display */
 .bloch-equations {
-    background: #f8f9fc;
-    border-left: 4px solid #667eea;
+    background: #faf6f7;
+    border-left: 4px solid #7B2D3B;
     padding: 14px 18px;
     margin-bottom: 14px;
     border-radius: 5px;
@@ -401,7 +401,7 @@ body {
 
 .bloch-equations .eq-section-title {
     font-weight: 700;
-    color: #667eea;
+    color: #7B2D3B;
     font-size: 0.88em;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -471,7 +471,7 @@ body {
 }
 
 .dispersion-controls {
-    background: #f8f9fa;
+    background: #f8f5f6;
     padding: 15px 20px;
     border-right: 1px solid #e0e0e0;
     overflow-y: auto;
@@ -479,10 +479,10 @@ body {
 }
 
 .dispersion-controls h2 {
-    color: #667eea;
+    color: #7B2D3B;
     margin-bottom: 10px;
     font-size: 1.3em;
-    border-bottom: 2px solid #667eea;
+    border-bottom: 2px solid #7B2D3B;
     padding-bottom: 6px;
 }
 
@@ -515,10 +515,10 @@ body {
     flex: 1;
     min-width: 60px;
     padding: 8px 4px;
-    border: 2px solid #667eea;
+    border: 2px solid #7B2D3B;
     border-radius: 8px;
     background: white;
-    color: #667eea;
+    color: #7B2D3B;
     font-weight: 600;
     font-size: 0.85em;
     cursor: pointer;
@@ -527,16 +527,16 @@ body {
 }
 
 .preset-btn:hover {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #7B2D3B 0%, #5C1A2A 100%);
     color: white;
 }
 
 .regime-indicator {
     margin-top: 12px;
     padding: 12px;
-    background: #e8edff;
+    background: #f3e5e8;
     border-radius: 8px;
-    border-left: 4px solid #667eea;
+    border-left: 4px solid #7B2D3B;
     line-height: 1.8;
 }
 
